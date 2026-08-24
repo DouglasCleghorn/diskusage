@@ -1,5 +1,9 @@
 # diskusage
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DouglasCleghorn/diskusage/master/src/diskusage.png" alt="diskusage icon" width="160" height="160">
+</p>
+
 `diskusage` is a fast disk-space browser and file inventory exporter for .NET 10. It includes:
 
 - A cross-platform `dotnet` tool with an ncdu-style terminal browser.
