@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>diskusage.cli</AssemblyName>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>diskusage</ToolCommandName>
+    <PackageId>diskusage</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>Douglas Cleghorn</Authors>
+    <Description>Fast interactive disk usage browser and file inventory exporter for .NET.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>diskusage.png</PackageIcon>
+    <PackageTags>disk;storage;ncdu;parquet;s3;minio</PackageTags>
+    <RepositoryUrl>https://github.com/DouglasCleghorn/diskusage</RepositoryUrl>
+    <PackageOutputPath>../../artifacts/packages</PackageOutputPath>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeProjectReferencesInTool</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.S3" Version="4.0.102.3" />
+    <PackageReference Include="Parquet.Net" Version="6.1.0" />
+    <ProjectReference Include="../DiskUsage.Core/DiskUsage.Core.csproj" PrivateAssets="all" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" Link="README.md" />
+    <None Include="../diskusage.png" Pack="true" PackagePath="/" Link="diskusage.png" />
+  </ItemGroup>
+
+  <Target Name="IncludeProjectReferencesInTool" DependsOnTargets="BuildOnlySettings;ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(_ResolvedProjectReferencePaths)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

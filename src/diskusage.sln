@@ -5,6 +5,14 @@ VisualStudioVersion = 16.0.30014.187
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "diskusage", "diskusage.csproj", "{1D9FA81A-DFE4-4782-819C-219D03EDFB67}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskUsage.Core", "DiskUsage.Core\DiskUsage.Core.csproj", "{74585928-CA9A-4AF4-B45D-E6D029DA026C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskUsage.Cli", "DiskUsage.Cli\DiskUsage.Cli.csproj", "{DCFB9FB4-A6B4-4C16-9E29-0ED8F6D0648D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskUsage.Core.Tests", "..\tests\DiskUsage.Core.Tests\DiskUsage.Core.Tests.csproj", "{B157990C-9E4B-46AB-9835-291099531E82}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskUsage.Benchmarks", "..\benchmarks\DiskUsage.Benchmarks\DiskUsage.Benchmarks.csproj", "{D5B32DC3-7525-4B3E-A21A-736A8F98CD57}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +23,22 @@ Global
 		{1D9FA81A-DFE4-4782-819C-219D03EDFB67}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1D9FA81A-DFE4-4782-819C-219D03EDFB67}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1D9FA81A-DFE4-4782-819C-219D03EDFB67}.Release|Any CPU.Build.0 = Release|Any CPU
+		{74585928-CA9A-4AF4-B45D-E6D029DA026C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{74585928-CA9A-4AF4-B45D-E6D029DA026C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{74585928-CA9A-4AF4-B45D-E6D029DA026C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{74585928-CA9A-4AF4-B45D-E6D029DA026C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCFB9FB4-A6B4-4C16-9E29-0ED8F6D0648D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCFB9FB4-A6B4-4C16-9E29-0ED8F6D0648D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCFB9FB4-A6B4-4C16-9E29-0ED8F6D0648D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCFB9FB4-A6B4-4C16-9E29-0ED8F6D0648D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B157990C-9E4B-46AB-9835-291099531E82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B157990C-9E4B-46AB-9835-291099531E82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B157990C-9E4B-46AB-9835-291099531E82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B157990C-9E4B-46AB-9835-291099531E82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5B32DC3-7525-4B3E-A21A-736A8F98CD57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5B32DC3-7525-4B3E-A21A-736A8F98CD57}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5B32DC3-7525-4B3E-A21A-736A8F98CD57}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5B32DC3-7525-4B3E-A21A-736A8F98CD57}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

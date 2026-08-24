@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MSTest" Version="4.3.3" />
+    <ProjectReference Include="../../src/DiskUsage.Cli/DiskUsage.Cli.csproj" />
+    <ProjectReference Include="../../src/DiskUsage.Core/DiskUsage.Core.csproj" />
+  </ItemGroup>
+
+</Project>
