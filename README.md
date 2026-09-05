@@ -40,7 +40,7 @@ The explicit version is important: an unqualified install selects a stable versi
 ### Release-candidate limitations and privacy
 
 - This is a preview, not a backup or a guaranteed-complete filesystem inventory. Files can change while scanning, and inaccessible entries can be omitted. Export/upload summaries currently do not report skipped entries; a successful exit does not guarantee completeness. Interactive scanning displays skipped counts, but redirected stderr disables that progress display.
-- The CLI targets cross-platform .NET 10, but this candidate has been verified on Windows only. Live S3/MinIO integration and Linux/macOS smoke tests remain release-validation gaps.
+- CI builds and tests the CLI on Windows, Linux, and macOS, including installing the packed tool and exercising its export formats. Live S3/MinIO integration remains a release-validation gap.
 - Inventory files contain absolute paths and timestamps, which can disclose usernames, project names, and private folder structures. Keep real exports, benchmark results, and diagnostic logs out of Git and review them before sharing. File contents are not included.
 - Upload only to an endpoint and bucket you trust. Use HTTPS outside local testing and prefer the AWS credential chain over command-line secrets. Exports are not encrypted by this tool; compression is not encryption. Upload currently uses a single S3 PUT, not multipart upload.
 - On Unix-like filesystems, filenames can contain terminal control characters. Do not use the terminal browser or text tree view on an untrusted directory tree; those displays currently render names literally.
