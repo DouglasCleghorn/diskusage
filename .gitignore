@@ -348,3 +348,15 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# Local secrets, credentials, and generated file inventories
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials.json
+diskusage-*.csv*
+diskusage-*.tsv*
+diskusage-*.parquet

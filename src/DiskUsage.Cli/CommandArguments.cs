@@ -6,14 +6,23 @@ internal sealed class CommandArguments
     {
         "help", "include-files", "include-hidden", "follow-links", "virtual-hosted-style", "stdout"
     };
+    private static readonly HashSet<string> ValueOptions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "format", "compression", "compression-level", "output", "threads", "depth", "top",
+        "endpoint", "bucket", "key", "region", "access-key", "secret-key", "session-token",
+        "extensions", "size", "min-size", "max-size"
+    };
 
     private readonly Dictionary<string, string?> _options;
+    private readonly Dictionary<string, List<string>> _repeatedOptions;
 
-    private CommandArguments(string command, IReadOnlyList<string> positionals, Dictionary<string, string?> options)
+    private CommandArguments(string command, IReadOnlyList<string> positionals, Dictionary<string, string?> options,
+        Dictionary<string, List<string>> repeatedOptions)
     {
         Command = command;
         Positionals = positionals;
         _options = options;
+        _repeatedOptions = repeatedOptions;
     }
 
     public string Command { get; }
@@ -23,6 +32,9 @@ internal sealed class CommandArguments
     public bool Has(string name) => _options.ContainsKey(name);
 
     public string? Get(string name) => _options.GetValueOrDefault(name);
+
+    public IReadOnlyList<string> GetValues(string name) =>
+        _repeatedOptions.TryGetValue(name, out var values) ? values : [];
 
     public string Require(string name) =>
         Get(name) ?? throw new ArgumentException($"Missing required option --{name}.");
@@ -58,7 +70,29 @@ internal sealed class CommandArguments
         var command = "browse";
         var positionals = new List<string>();
         var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        var repeatedOptions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         var index = 0;
+
+        void AddOption(string name, string? value)
+        {
+            if (!BooleanOptions.Contains(name) && !ValueOptions.Contains(name))
+                throw new ArgumentException($"Unknown option --{name}. Run 'diskusage help'.");
+            if (ValueOptions.Contains(name) && string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException($"Missing value for --{name}.");
+            if (BooleanOptions.Contains(name) && value is not null)
+                throw new ArgumentException($"--{name} does not accept a value.");
+            if (name.Equals("extensions", StringComparison.OrdinalIgnoreCase) || name.Equals("size", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException($"Missing value for --{name}.");
+                if (!repeatedOptions.TryGetValue(name, out var values)) repeatedOptions[name] = values = [];
+                values.Add(value);
+            }
+            else if (options.ContainsKey(name))
+            {
+                throw new ArgumentException($"Option --{name} was specified more than once.");
+            }
+            options[name] = value;
+        }
 
         if (args.Length > 0 && !args[0].StartsWith("-", StringComparison.Ordinal))
         {
@@ -87,26 +121,26 @@ internal sealed class CommandArguments
             var equals = option.IndexOf('=');
             if (equals >= 0)
             {
-                options[option[..equals]] = option[(equals + 1)..];
+                AddOption(option[..equals], option[(equals + 1)..]);
                 continue;
             }
 
             if (BooleanOptions.Contains(option))
             {
-                options[option] = null;
+                AddOption(option, null);
                 continue;
             }
 
             if (index < args.Length && !args[index].StartsWith("--", StringComparison.Ordinal))
             {
-                options[option] = args[index++];
+                AddOption(option, args[index++]);
             }
             else
             {
-                options[option] = null;
+                AddOption(option, null);
             }
         }
 
-        return new CommandArguments(command, positionals, options);
+        return new CommandArguments(command, positionals, options, repeatedOptions);
     }
 }

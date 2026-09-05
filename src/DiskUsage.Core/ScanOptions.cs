@@ -10,5 +10,9 @@ public sealed record ScanOptions
 
     public bool CollectFiles { get; init; } = true;
 
+    public FileFilter? FileFilter { get; init; }
+
+    internal IReadOnlyList<string> ExcludedFilePaths { get; init; } = [];
+
     public int MaxDegreeOfParallelism { get; init; } = DefaultMaxDegreeOfParallelism;
 }

@@ -67,7 +67,7 @@ public sealed class FileSystemScanner
             IEnumerator<ScanEntry>? enumerator = null;
             try
             {
-                enumerator = CreateDirectoryEnumerable(directoryPath, options, collectMetadata: true).GetEnumerator();
+                enumerator = CreateDirectoryEnumerable(directoryPath, options, collectMetadata: true, cancellationToken).GetEnumerator();
                 while (true)
                 {
                     ScanEntry entry;
@@ -165,7 +165,7 @@ public sealed class FileSystemScanner
                 {
                     try
                     {
-                        foreach (var entry in CreateDirectoryEnumerable(directoryPath, options, collectMetadata: true))
+                        foreach (var entry in CreateDirectoryEnumerable(directoryPath, options, collectMetadata: true, linkedCancellation.Token))
                         {
                             linkedCancellation.Token.ThrowIfCancellationRequested();
                             if (entry.IsDirectory)
@@ -345,7 +345,7 @@ public sealed class FileSystemScanner
 
                     try
                     {
-                        foreach (var entry in CreateDirectoryEnumerable(work.DirectoryPath, options, options.CollectFiles))
+                        foreach (var entry in CreateDirectoryEnumerable(work.DirectoryPath, options, options.CollectFiles, linkedCancellation.Token))
                         {
                             linkedCancellation.Token.ThrowIfCancellationRequested();
                             if (entry.IsDirectory)
@@ -469,7 +469,7 @@ public sealed class FileSystemScanner
 
             try
             {
-                foreach (var entry in CreateDirectoryEnumerable(work.DirectoryPath, options, options.CollectFiles))
+                foreach (var entry in CreateDirectoryEnumerable(work.DirectoryPath, options, options.CollectFiles, cancellationToken))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     if (entry.IsDirectory)
@@ -539,7 +539,8 @@ public sealed class FileSystemScanner
     private static FileSystemEnumerable<ScanEntry> CreateDirectoryEnumerable(
         string path,
         ScanOptions options,
-        bool collectMetadata)
+        bool collectMetadata,
+        CancellationToken cancellationToken)
     {
         var enumerable = new FileSystemEnumerable<ScanEntry>(
             path,
@@ -552,6 +553,27 @@ public sealed class FileSystemScanner
             { IncludeHidden: false, FollowLinks: true } => IncludeVisible,
             _ => IncludeVisibleWithoutLinks
         };
+        if (options.FileFilter is not null || options.ExcludedFilePaths.Count > 0)
+        {
+            var filter = options.FileFilter;
+            var include = enumerable.ShouldIncludePredicate;
+            enumerable.ShouldIncludePredicate = (ref FileSystemEntry entry) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!include(ref entry)) return false;
+                if (entry.IsDirectory) return true;
+                if (filter is not null && (!filter.MatchesExtension(entry.FileName) ||
+                    (filter.HasSizeConditions && !filter.MatchesSize(entry.Length)))) return false;
+                var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+                foreach (var excludedPath in options.ExcludedFilePaths)
+                {
+                    // Only allocate the full path for a candidate with the same filename.
+                    if (entry.FileName.Equals(Path.GetFileName(excludedPath), comparison) &&
+                        entry.ToFullPath().Equals(excludedPath, comparison)) return false;
+                }
+                return true;
+            };
+        }
         return enumerable;
     }
 

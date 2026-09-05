@@ -20,18 +20,32 @@
 
 ## Command-line tool
 
+The first 2.0 release is **2.0.0-rc.1**, a release candidate distributed as a NuGet/.NET tool. WPF remains available from source; Windows installers and WinGet distribution are outside this release.
+
 Build and install it from this checkout:
 
 ```powershell
 dotnet pack src/DiskUsage.Cli/DiskUsage.Cli.csproj --configuration Release
-dotnet tool install --global --add-source artifacts/packages diskusage --version 2.0.0
+dotnet tool install --global --add-source artifacts/packages diskusage --version 2.0.0-rc.1
 ```
 
 Once a release is published to NuGet, install it with:
 
 ```powershell
-dotnet tool install --global diskusage
+dotnet tool install --global diskusage --version 2.0.0-rc.1
 ```
+
+The explicit version is important: an unqualified install selects a stable version, not this candidate. To update an existing installation, use `dotnet tool update --global diskusage --version 2.0.0-rc.1`.
+
+### Release-candidate limitations and privacy
+
+- This is a preview, not a backup or a guaranteed-complete filesystem inventory. Files can change while scanning, and inaccessible entries can be omitted. Export/upload summaries currently do not report skipped entries; a successful exit does not guarantee completeness. Interactive scanning displays skipped counts, but redirected stderr disables that progress display.
+- The CLI targets cross-platform .NET 10, but this candidate has been verified on Windows only. Live S3/MinIO integration and Linux/macOS smoke tests remain release-validation gaps.
+- Inventory files contain absolute paths and timestamps, which can disclose usernames, project names, and private folder structures. Keep real exports, benchmark results, and diagnostic logs out of Git and review them before sharing. File contents are not included.
+- Upload only to an endpoint and bucket you trust. Use HTTPS outside local testing and prefer the AWS credential chain over command-line secrets. Exports are not encrypted by this tool; compression is not encryption. Upload currently uses a single S3 PUT, not multipart upload.
+- On Unix-like filesystems, filenames can contain terminal control characters. Do not use the terminal browser or text tree view on an untrusted directory tree; those displays currently render names literally.
+- Parquet compression levels select library presets, not arbitrary Zstandard levels. Avoid level `0` in this candidate: it is accepted but does not reliably mean uncompressed Parquet. Use the default or documented `1–9` presets.
+- For stdout exports, shell-created destination files are not managed atomically by the tool. Keep them outside the scanned tree and handle interruption in your pipeline.
 
 ### Browse interactively
 
@@ -71,6 +85,26 @@ Every format includes these columns:
 | `size_bytes` | File size in bytes |
 | `created_utc` | Creation timestamp in UTC |
 | `modified_utc` | Last-write timestamp in UTC |
+
+### Filter exported files
+
+Filters work with `export` and `upload`, including compressed formats, Parquet, and stdout:
+
+```powershell
+diskusage export C:\data --extensions .log,.txt --size ">=100MiB" --top 100 --format parquet --output largest.parquet
+diskusage export C:\data --extensions csv --extensions tsv --min-size 1MiB --max-size 1GiB --format csv --stdout
+diskusage export C:\data --size ">0" --size "<10MB" --format tsv.gz --output small-files.tsv.gz
+diskusage export C:\data --extensions "<none>" --format csv --output extensionless.csv
+```
+
+- `--extensions` accepts a comma-separated list; repeated options add alternatives (OR). Match the final extension, case-insensitively: `txt`, `.txt`, and `*.txt` are equivalent. Use `<none>` for extensionless files. `.tar.gz` has final extension `.gz`.
+- `--size` accepts `<`, `<=`, `=`, `==`, `!=`, `>=`, or `>`; a bare size means equality. Quote comparisons to prevent shell redirection. Repeated comparisons and other filters combine as AND.
+- `--min-size` and `--max-size` are inclusive bounds. Sizes default to bytes; `KB/MB/GB/TB` use powers of 1000 and `KiB/MiB/GiB/TiB` use powers of 1024. Fractional units such as `1.5MiB` are accepted when they resolve to whole bytes.
+- `--top N` exports at most N matching files, largest first, with ordinal full-path ordering for equal sizes. N must be positive. Without it, records stream in enumeration order.
+
+Extension and size filters run against directory entries before allocating full paths, timestamps, or file records. Directories are still traversed to find matching descendants. Top-N requires a complete scan but retains only N matching records in a bounded heap, then orders those records for export. Progress counts matching candidates before top-N selection; the final summary counts exported records. Exports with no matches remain valid empty inventories. When using `--output`, the destination and its temporary file are excluded from enumeration; for shell redirection, place the redirected file outside the scanned directory.
+
+### Compression and piping
 
 Parquet output is written in 250,000-row groups, uses byte-stream-split encoding for file sizes, and defaults to Parquet.Net's `Optimal` preset, which maps to Zstandard level 3. Parquet.Net exposes Zstandard through presets: `--compression-level 1–3` selects Zstd level 1, `4–7` selects level 3, and `8–9` selects level 19. CSV and TSV are streamed as plain text or with Brotli (`br`), gzip (`gz`), or ZIP compression. A compressed format can be selected with shorthand such as `--format csv.br` or independently with `--format csv --compression br`. `--compression-level` accepts `0–11` for Brotli and `0–9` for gzip/ZIP; omit it to use the codec default. ZIP output contains one `.csv` or `.tsv` entry.
 

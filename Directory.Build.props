@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- Normalize source paths even when a distributable package is built locally. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+</Project>

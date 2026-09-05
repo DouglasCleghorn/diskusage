@@ -19,6 +19,9 @@ internal static class CliApplication
         }
 
         var path = Path.GetFullPath(parsed.Positionals.FirstOrDefault() ?? Environment.CurrentDirectory);
+        if (parsed.Command is not ("export" or "upload") &&
+            new[] { "extensions", "size", "min-size", "max-size" }.Any(parsed.Has))
+            throw new ArgumentException("File filters apply only to export and upload.");
         var scanOptions = new ScanOptions
         {
             IncludeHidden = parsed.Has("include-hidden"),
@@ -82,6 +85,8 @@ internal static class CliApplication
         CommandArguments arguments,
         CancellationToken cancellationToken)
     {
+        options = options with { FileFilter = ExportFilterArguments.Parse(arguments) };
+        var top = ExportFilterArguments.ParseTop(arguments);
         var format = ExportFormatParser.Parse(arguments.Get("format"), arguments.Get("compression"));
         var compressionLevel = arguments.GetOptionalInt("compression-level");
         format.ValidateCompressionLevel(compressionLevel);
@@ -109,7 +114,8 @@ internal static class CliApplication
                         options,
                         progress,
                         cancellationToken,
-                        compressionLevel);
+                        compressionLevel,
+                        top);
                     await using var input = new FileStream(
                         tempPath,
                         FileMode.Open,
@@ -144,7 +150,8 @@ internal static class CliApplication
                     options,
                     progress,
                     cancellationToken,
-                    compressionLevel);
+                    compressionLevel,
+                    top);
             }
 
             await output.FlushAsync(cancellationToken);
@@ -154,7 +161,7 @@ internal static class CliApplication
         else
         {
             var output = outputArgument ?? $"diskusage-{DateTime.UtcNow:yyyyMMdd-HHmmss}.{format.Extension()}";
-            result = await new FileListExporter().ExportAsync(path, output, format, options, progress, cancellationToken, compressionLevel);
+            result = await new FileListExporter().ExportAsync(path, output, format, options, progress, cancellationToken, compressionLevel, top);
             ClearProgress();
             Console.WriteLine($"Wrote {result.Files:N0} files ({SizeFormatter.Format(result.Bytes)}) to {result.OutputPath}");
         }
@@ -168,6 +175,8 @@ internal static class CliApplication
         CommandArguments arguments,
         CancellationToken cancellationToken)
     {
+        options = options with { FileFilter = ExportFilterArguments.Parse(arguments) };
+        var top = ExportFilterArguments.ParseTop(arguments);
         var format = ExportFormatParser.Parse(arguments.Get("format"), arguments.Get("compression"));
         var compressionLevel = arguments.GetOptionalInt("compression-level");
         format.ValidateCompressionLevel(compressionLevel);
@@ -179,7 +188,7 @@ internal static class CliApplication
         try
         {
             var progress = CreateProgress("Preparing upload");
-            var exported = await new FileListExporter().ExportAsync(path, tempPath, format, options, progress, cancellationToken, compressionLevel);
+            var exported = await new FileListExporter().ExportAsync(path, tempPath, format, options, progress, cancellationToken, compressionLevel, top);
             ClearProgress();
             Console.Error.WriteLine($"Uploading {exported.Files:N0} files ({SizeFormatter.Format(new FileInfo(tempPath).Length)})...");
 
@@ -283,6 +292,16 @@ internal static class CliApplication
               --output FILE|-        Output path; generated when omitted
               --stdout               Write the export to stdout; --output - is equivalent
 
+            File filters (export and upload):
+              --extensions LIST      Comma-separated final extensions, e.g. txt,.csv,*.log; case-insensitive
+                                     Repeat to add extensions; use "<none>" for extensionless files
+              --size COMPARISON      e.g. ">=100MiB", "<1GB", "!=0"; repeat for AND conditions
+              --min-size SIZE        Inclusive minimum size
+              --max-size SIZE        Inclusive maximum size
+              --top N                Largest N matching files, descending size; ties by ordinal full path
+                                     Scans all eligible files and retains at most N records
+              Sizes                  Bytes by default; KB/MB/GB/TB decimal; KiB/MiB/GiB/TiB binary
+
             Upload options:
               --endpoint URL         S3-compatible endpoint, such as http://localhost:9000
               --bucket NAME          Destination bucket (required)
@@ -297,6 +316,7 @@ internal static class CliApplication
               diskusage browse C:\
               diskusage scan . --depth 2 --top 25
               diskusage export C:\data --format parquet --output inventory.parquet
+              diskusage export C:\data --extensions .log,.txt --size ">=1MiB" --top 100 --format csv --output largest.csv
               diskusage export C:\data --format tsv --compression gz --compression-level 6 --output inventory.tsv.gz
               diskusage export C:\data --format csv --stdout | gzip > inventory.csv.gz
               diskusage upload /data --format csv.zip --compression-level 9 --endpoint http://localhost:9000 --bucket inventory --access-key minioadmin --secret-key minioadmin

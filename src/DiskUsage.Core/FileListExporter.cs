@@ -20,7 +20,8 @@ public sealed class FileListExporter
         ScanOptions options,
         IProgress<ScanProgress>? progress,
         CancellationToken cancellationToken,
-        int? compressionLevel = null)
+        int? compressionLevel = null,
+        int? top = null)
     {
         return await ExportAtomicallyAsync(
             outputPath,
@@ -29,10 +30,11 @@ public sealed class FileListExporter
                 output,
                 outputName,
                 format,
-                options,
+                options with { ExcludedFilePaths = [.. options.ExcludedFilePaths, Path.GetFullPath(outputPath)] },
                 progress,
                 cancellationToken,
-                compressionLevel),
+                compressionLevel,
+                top),
             cancellationToken);
     }
 
@@ -65,10 +67,46 @@ public sealed class FileListExporter
         ScanOptions options,
         IProgress<ScanProgress>? progress,
         CancellationToken cancellationToken,
-        int? compressionLevel = null)
+        int? compressionLevel = null,
+        int? top = null)
     {
+        if (top is <= 0) throw new ArgumentOutOfRangeException(nameof(top), "Top must be positive.");
+        if (output is FileStream fileStream)
+            options = options with { ExcludedFilePaths = [.. options.ExcludedFilePaths, Path.GetFullPath(fileStream.Name)] };
         var records = _scanner.EnumerateFilesAsync(rootPath, options, progress, cancellationToken);
+        if (top is { } count) records = SelectLargestAsync(records, count, cancellationToken);
         return await ExportRecordsCoreAsync(records, output, outputName, format, compressionLevel, cancellationToken);
+    }
+
+    private static async IAsyncEnumerable<FileRecord> SelectLargestAsync(
+        IAsyncEnumerable<FileRecord> records, int count,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        // The smallest file (and lexically last path for ties) is evicted first.
+        var comparer = Comparer<FileRecord>.Create((left, right) =>
+        {
+            var size = left.Size.CompareTo(right.Size);
+            return size != 0 ? size : StringComparer.Ordinal.Compare(right.FullPath, left.FullPath);
+        });
+        var largest = new PriorityQueue<FileRecord, FileRecord>(comparer);
+        await foreach (var record in records.WithCancellation(cancellationToken).ConfigureAwait(false))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (largest.Count < count) largest.Enqueue(record, record);
+            else largest.EnqueueDequeue(record, record);
+        }
+
+        var ordered = new FileRecord[largest.Count];
+        for (var index = ordered.Length - 1; index >= 0; index--)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ordered[index] = largest.Dequeue();
+        }
+        foreach (var record in ordered)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return record;
+        }
     }
 
     private static async Task<ExportResult> ExportAtomicallyAsync(
