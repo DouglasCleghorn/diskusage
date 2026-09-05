@@ -1,0 +1,92 @@
+name: Publish NuGet
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuget-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.repository == 'DouglasCleghorn/diskusage'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate tag, version, and release ancestry
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          ./eng/Test-Release.ps1 -Tag $env:RELEASE_TAG -IsPrerelease ($env:RELEASE_IS_PRERELEASE -eq 'true')
+          git merge-base --is-ancestor $env:GITHUB_SHA origin/master
+          if ($LASTEXITCODE -ne 0) { throw 'Only commits already on master can be published.' }
+
+  checks:
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  publish:
+    needs: [validate, checks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # No checkout/build in this credential-bearing job.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nuget-package
+          path: package
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.400'
+      - name: Verify exact artifact before requesting credentials
+        id: package
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          NUGET_USER: ${{ vars.NUGET_USER }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_USER)) { throw 'Configure NUGET_USER in the nuget environment.' }
+          if ($env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$') { throw 'Invalid release tag.' }
+          $version = $env:RELEASE_TAG.Substring(1)
+          $files = @(Get-ChildItem package -File -Recurse)
+          $packages = @($files | Where-Object Extension -eq '.nupkg')
+          if ($files.Count -ne 2 -or $packages.Count -ne 1 -or $packages[0].Name -cne "diskusage.$version.nupkg") { throw 'Unexpected release artifact contents.' }
+          $package = $packages[0]
+          $hash = (Get-FileHash $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ((Get-Content package/SHA256SUMS -Raw).Trim() -cne "$hash  $($package.Name)") { throw 'Package checksum mismatch.' }
+          $archive = [IO.Compression.ZipFile]::OpenRead($package.FullName)
+          try {
+            $reader = [IO.StreamReader]::new($archive.GetEntry('diskusage.nuspec').Open())
+            try { [xml]$spec = $reader.ReadToEnd() } finally { $reader.Dispose() }
+            if ($spec.package.metadata.id -cne 'diskusage' -or $spec.package.metadata.version -cne $version -or $spec.package.metadata.repository.commit -cne $env:GITHUB_SHA) { throw 'Package identity, version, or commit does not match the release.' }
+          } finally { $archive.Dispose() }
+          "path=$($package.FullName)" >> $env:GITHUB_OUTPUT
+      - name: NuGet trusted-publishing login
+        id: login
+        uses: NuGet/login@ebc737b6fc418a6ca0073cf116ec8dc156d8b81e # v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+      - name: Publish validated package
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+          PACKAGE_FILE: ${{ steps.package.outputs.path }}
+        run: dotnet nuget push $env:PACKAGE_FILE --source https://api.nuget.org/v3/index.json

@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.400'
+      - name: Validate release guard tests
+        run: ./eng/Test-ReleaseGuard.ps1
+      - name: Restore and audit dependencies
+        run: |
+          $target = if ($IsWindows) { 'src/diskusage.sln' } else { 'tests/DiskUsage.Core.Tests/DiskUsage.Core.Tests.csproj' }
+          dotnet restore $target -p:NuGetAudit=true -p:NuGetAuditMode=all -warnaserror
+          if ($LASTEXITCODE -ne 0) { throw 'Restore/dependency audit failed.' }
+      - name: Build
+        run: |
+          $target = if ($IsWindows) { 'src/diskusage.sln' } else { 'tests/DiskUsage.Core.Tests/DiskUsage.Core.Tests.csproj' }
+          dotnet build $target -c Release --no-restore -warnaserror
+          if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
+      - name: Test
+        run: dotnet test tests/DiskUsage.Core.Tests/DiskUsage.Core.Tests.csproj -c Release --no-build --no-restore
+      - name: Pack
+        run: dotnet pack src/DiskUsage.Cli/DiskUsage.Cli.csproj -c Release --no-build --no-restore -o artifacts/ci-package
+      - name: Inspect package and test installed tool
+        run: ./eng/Test-Package.ps1 -PackageDirectory artifacts/ci-package
+      # Only the exact Windows package from this release run can reach the publisher.
+      - name: Retain validated release package
+        if: github.event_name == 'release' && matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nuget-package
+          path: |
+            artifacts/ci-package/diskusage.*.nupkg
+            artifacts/ci-package/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
