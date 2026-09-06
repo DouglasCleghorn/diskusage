@@ -20,32 +20,30 @@
 
 ## Command-line tool
 
-The first 2.0 release is **2.0.0-rc.1**, a release candidate distributed as a NuGet/.NET tool. WPF remains available from source; Windows installers and WinGet distribution are outside this release.
+Version **2.0.0** is packaged as a NuGet/.NET tool. WPF remains available from source; Windows installers and WinGet distribution are outside this release.
 
 Build and install it from this checkout:
 
 ```powershell
 dotnet pack src/DiskUsage.Cli/DiskUsage.Cli.csproj --configuration Release
-dotnet tool install --global --add-source artifacts/packages diskusage --version 2.0.0-rc.1
+dotnet tool install --global --add-source artifacts/packages diskusage --version 2.0.0
 ```
 
 Once a release is published to NuGet, install it with:
 
 ```powershell
-dotnet tool install --global diskusage --version 2.0.0-rc.1
+dotnet tool install --global diskusage --version 2.0.0
 ```
 
-The explicit version is important: an unqualified install selects a stable version, not this candidate. To update an existing installation, use `dotnet tool update --global diskusage --version 2.0.0-rc.1`.
+To update an existing installation, use `dotnet tool update --global diskusage --version 2.0.0`.
 
-### Release-candidate limitations and privacy
+### Known limitations
 
-- This is a preview, not a backup or a guaranteed-complete filesystem inventory. Files can change while scanning, and inaccessible entries can be omitted. Export/upload summaries currently do not report skipped entries; a successful exit does not guarantee completeness. Interactive scanning displays skipped counts, but redirected stderr disables that progress display.
-- CI builds and tests the CLI on Windows, Linux, and macOS, including installing the packed tool and exercising its export formats. Live S3/MinIO integration remains a release-validation gap.
-- Inventory files contain absolute paths and timestamps, which can disclose usernames, project names, and private folder structures. Keep real exports, benchmark results, and diagnostic logs out of Git and review them before sharing. File contents are not included.
-- Upload only to an endpoint and bucket you trust. Use HTTPS outside local testing and prefer the AWS credential chain over command-line secrets. Exports are not encrypted by this tool; compression is not encryption. Upload currently uses a single S3 PUT, not multipart upload.
-- On Unix-like filesystems, filenames can contain terminal control characters. Do not use the terminal browser or text tree view on an untrusted directory tree; those displays currently render names literally.
-- Parquet compression levels select library presets, not arbitrary Zstandard levels. Avoid level `0` in this candidate: it is accepted but does not reliably mean uncompressed Parquet. Use the default or documented `1–9` presets.
-- For stdout exports, shell-created destination files are not managed atomically by the tool. Keep them outside the scanned tree and handle interruption in your pipeline.
+- Inaccessible files are skipped. Interactive scan progress shows skipped counts, but export/upload summaries do not yet include them.
+- Live S3/MinIO integration has not yet been validated. Uploads use a single S3 PUT; multipart upload is not supported.
+- Parquet compression levels select library presets, not arbitrary Zstandard levels. Use the default or documented `1–9` presets; level `0` does not reliably produce uncompressed Parquet.
+- Terminal views render control characters in filenames literally, which can disrupt the display on Unix-like systems.
+- Interrupted stdout pipelines can leave partial destination files. Atomic file replacement applies only when the tool writes directly to a file.
 
 ### Browse interactively
 

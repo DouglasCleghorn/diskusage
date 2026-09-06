@@ -9,13 +9,13 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>diskusage</ToolCommandName>
     <PackageId>diskusage</PackageId>
-    <Version>2.0.0-rc.1</Version>
+    <Version>2.0.0</Version>
     <Authors>Douglas Cleghorn</Authors>
     <Description>Fast interactive disk usage browser and file inventory exporter for .NET.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2020-2026 Douglas Cleghorn</Copyright>
     <PackageProjectUrl>https://github.com/DouglasCleghorn/diskusage</PackageProjectUrl>
-    <PackageReleaseNotes>First 2.0 release candidate: .NET 10 command-line tool, disk browser, filtered CSV/TSV/Parquet exports, configurable compression, and S3-compatible uploads. Preview release; see README for limitations.</PackageReleaseNotes>
+    <PackageReleaseNotes>Version 2.0: .NET 10 command-line tool, disk browser, filtered CSV/TSV/Parquet exports, configurable compression, and S3-compatible uploads. See README for known limitations.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>diskusage.png</PackageIcon>
     <PackageTags>disk;storage;ncdu;parquet;s3;minio</PackageTags>
