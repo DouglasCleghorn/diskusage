@@ -2,6 +2,33 @@
 
 The NuGet tool bundles the runtime dependencies listed below. Their original license and attribution texts are reproduced from the linked upstream sources or the restored package. These notices do not change diskusage's MIT license. Upstream umbrella notices may mention components not used by this tool. Public attribution/contact information in these notices is retained as supplied by the copyright holders.
 
+## System.CommandLine 2.0.11
+
+Source: https://raw.githubusercontent.com/dotnet/command-line-api/main/LICENSE.md
+
+```text
+The MIT License (MIT)
+
+Copyright © .NET Foundation and Contributors
+
+All rights reserved.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## K4os.Compression.LZ4 1.3.8
 
 Source: https://raw.githubusercontent.com/MiloszKrajewski/K4os.Compression.LZ4/f5a25b7d72e2e41550fe20662597169ff11c3b60/LICENSE

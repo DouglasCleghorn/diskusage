@@ -4,24 +4,23 @@ namespace DiskUsage.Cli;
 
 internal static class CliApplication
 {
-    internal static readonly HashSet<string> Commands = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "browse", "scan", "export", "upload", "help"
-    };
-
     public static async Task<int> RunAsync(string[] args, CancellationToken cancellationToken)
     {
         var parsed = CommandArguments.Parse(args);
-        if (parsed.Command == "help" || parsed.Has("help"))
+        var help = CliHelp.GetRequestedText(args, parsed);
+        if (help is not null)
         {
-            PrintHelp();
+            Console.WriteLine(help);
+            return 0;
+        }
+        if (parsed.Has("version"))
+        {
+            Console.WriteLine(typeof(CliApplication).Assembly.GetCustomAttributes(false)
+                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().Single().InformationalVersion.Split('+')[0]);
             return 0;
         }
 
         var path = Path.GetFullPath(parsed.Positionals.FirstOrDefault() ?? Environment.CurrentDirectory);
-        if (parsed.Command is not ("export" or "upload") &&
-            new[] { "extensions", "size", "min-size", "max-size" }.Any(parsed.Has))
-            throw new ArgumentException("File filters apply only to export and upload.");
         var scanOptions = new ScanOptions
         {
             IncludeHidden = parsed.Has("include-hidden"),
@@ -267,61 +266,6 @@ internal static class CliApplication
 
     private static void PrintSummary(ScanResult result) =>
         Console.WriteLine($"{result.Files:N0} files in {result.Directories:N0} directories, {SizeFormatter.Format(result.Bytes)}, {result.Skipped:N0} skipped, {result.Elapsed.TotalSeconds:N1}s");
-
-    private static void PrintHelp()
-    {
-        Console.WriteLine("""
-            diskusage - interactive disk browser and file inventory exporter
-
-            Usage:
-              diskusage [path]
-              diskusage browse [path]
-              diskusage scan [path] [--depth N] [--top N] [--include-files]
-              diskusage export [path] --format parquet|csv|tsv [--compression none|br|gz|zip] [--compression-level N] [--output FILE|-] [--stdout]
-              diskusage upload [path] --format parquet|csv|tsv [--compression none|br|gz|zip] [--compression-level N] --bucket NAME [options]
-
-            Scan options:
-              --include-hidden       Include hidden files and directories
-              --follow-links         Follow symbolic links/reparse points (cycles are detected)
-              --threads N            Parallel directory workers (default: up to 4; use 1 for HDDs)
-
-            Export options:
-              --format FORMAT        parquet, csv, tsv, or shorthand such as csv.br, tsv.gz, csv.zip
-              --compression TYPE     none, br, gz, or zip (CSV/TSV only)
-              --compression-level N  Parquet Zstd: 1-3 => level 1, 4-7 => 3 (default), 8-9 => 19; Brotli: 0-11; gzip/ZIP: 0-9
-              --output FILE|-        Output path; generated when omitted
-              --stdout               Write the export to stdout; --output - is equivalent
-
-            File filters (export and upload):
-              --extensions LIST      Comma-separated final extensions, e.g. txt,.csv,*.log; case-insensitive
-                                     Repeat to add extensions; use "<none>" for extensionless files
-              --size COMPARISON      e.g. ">=100MiB", "<1GB", "!=0"; repeat for AND conditions
-              --min-size SIZE        Inclusive minimum size
-              --max-size SIZE        Inclusive maximum size
-              --top N                Largest N matching files, descending size; ties by ordinal full path
-                                     Scans all eligible files and retains at most N records
-              Sizes                  Bytes by default; KB/MB/GB/TB decimal; KiB/MiB/GiB/TiB binary
-
-            Upload options:
-              --endpoint URL         S3-compatible endpoint, such as http://localhost:9000
-              --bucket NAME          Destination bucket (required)
-              --key KEY              Object key (generated when omitted)
-              --region REGION        Signing region (default: us-east-1)
-              --access-key VALUE     Access key; standard AWS credential sources work when omitted
-              --secret-key VALUE     Secret key
-              --session-token VALUE  Optional temporary credential token
-              --virtual-hosted-style Disable path-style bucket addressing
-
-            Examples:
-              diskusage browse C:\
-              diskusage scan . --depth 2 --top 25
-              diskusage export C:\data --format parquet --output inventory.parquet
-              diskusage export C:\data --extensions .log,.txt --size ">=1MiB" --top 100 --format csv --output largest.csv
-              diskusage export C:\data --format tsv --compression gz --compression-level 6 --output inventory.tsv.gz
-              diskusage export C:\data --format csv --stdout | gzip > inventory.csv.gz
-              diskusage upload /data --format csv.zip --compression-level 9 --endpoint http://localhost:9000 --bucket inventory --access-key minioadmin --secret-key minioadmin
-            """);
-    }
 
     private sealed class InlineProgress<T>(Action<T> callback) : IProgress<T>
     {

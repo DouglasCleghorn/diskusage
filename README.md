@@ -4,38 +4,71 @@
   <img src="https://raw.githubusercontent.com/DouglasCleghorn/diskusage/master/src/diskusage.png" alt="diskusage icon" width="160" height="160">
 </p>
 
-`diskusage` is a fast disk-space browser and file inventory exporter for .NET 10. It includes:
+`diskusage` is a cross-platform .NET 10 command-line tool to **find large files, analyze disk usage, and export filtered file inventories** to CSV, TSV, or Parquet. Upload inventories directly to Amazon S3, MinIO, or other S3-compatible endpoints.
 
 - A cross-platform `dotnet` tool with an ncdu-style terminal browser.
 - Script-friendly disk summaries.
-- Streaming TSV, Brotli-compressed CSV, and row-grouped Parquet exports.
+- Streaming CSV/TSV with optional Brotli, gzip, or ZIP compression, and row-grouped Parquet exports.
 - Direct uploads to Amazon S3, MinIO, and other S3-compatible endpoints.
 - A dense, virtualized WPF desktop app for Windows.
 
-## Requirements
-
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) to build the repository.
-- The command-line tool runs anywhere supported by .NET 10.
-- The desktop app requires Windows.
-
-## Command-line tool
+## Quick start
 
 Version **2.0.0** is packaged as a NuGet/.NET tool. WPF remains available from source; Windows installers and WinGet distribution are outside this release.
 
-Build and install it from this checkout:
-
-```powershell
-dotnet pack src/DiskUsage.Cli/DiskUsage.Cli.csproj --configuration Release
-dotnet tool install --global --add-source artifacts/packages diskusage --version 2.0.0
-```
-
-Once a release is published to NuGet, install it with:
+Install from NuGet once 2.0.0 is published (requires .NET 10):
 
 ```powershell
 dotnet tool install --global diskusage --version 2.0.0
 ```
 
 To update an existing installation, use `dotnet tool update --global diskusage --version 2.0.0`.
+
+Find the 20 largest files under the current directory, with CSV on stdout:
+
+<!-- smoke:largest -->
+```sh
+diskusage export . --top 20 --format csv --stdout
+```
+
+Example CSV output (paths and timestamps vary):
+
+```csv
+full_path,size_bytes,created_utc,modified_utc
+/data/app.log,4096,2026-01-01T00:00:00.0000000Z,2026-01-02T00:00:00.0000000Z
+/data/notes.txt,2048,2026-01-01T00:00:00.0000000Z,2026-01-02T00:00:00.0000000Z
+```
+
+Export matching log/text files of at least 1 KiB to Parquet:
+
+<!-- smoke:filtered -->
+```sh
+diskusage export . --extensions .log,.txt --size ">=1KiB" --format parquet --output ../inventory.parquet
+```
+
+Print a disk-usage summary:
+
+<!-- smoke:scan -->
+```sh
+diskusage scan . --depth 2 --top 10
+```
+
+For agents and scripts, start with the [automation reference](https://github.com/DouglasCleghorn/diskusage/blob/master/AUTOMATION.md): command selection, defaults, output schema, exit codes, and copyable recipes. Run `diskusage export --help` (or `-h`) or `diskusage help upload` for command-specific help, generated with System.CommandLine. `diskusage --version` prints the installed version. Use `browse` for interactive exploration, `scan` for readable summaries, and `export` for machine-readable records.
+
+## Requirements and source installation
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) to build or install the tool using `dotnet tool`.
+- The installed command-line tool requires the .NET 10 runtime on Windows, Linux, or macOS.
+- The desktop app requires Windows.
+
+Build and install from this checkout:
+
+```powershell
+dotnet pack src/DiskUsage.Cli/DiskUsage.Cli.csproj --configuration Release
+dotnet tool install --global --add-source artifacts/packages diskusage --version 2.0.0
+```
+
+## Command-line reference
 
 ### Known limitations
 

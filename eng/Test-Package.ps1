@@ -13,7 +13,7 @@ if ($packages.Count -ne 1 -or $packages[0].Name -cne "diskusage.$version.nupkg")
 $package = $packages[0]
 $archive = [IO.Compression.ZipFile]::OpenRead($package.FullName)
 try {
-    foreach ($required in 'diskusage.nuspec', 'README.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'diskusage.png',
+    foreach ($required in 'diskusage.nuspec', 'README.md', 'AUTOMATION.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'diskusage.png',
         'tools/net10.0/any/DotnetToolSettings.xml', 'tools/net10.0/any/DiskUsage.Core.dll', 'tools/net10.0/any/diskusage.cli.dll') {
         if (!$archive.GetEntry($required)) { throw "Missing package entry: $required" }
     }
@@ -72,6 +72,8 @@ if ($LASTEXITCODE -ne 0 -or @(Import-Csv $stdout).Count -ne 1) { throw 'CSV stdo
 $invalid = Join-Path $work 'invalid.csv'
 & $tool export $source --size invalid --format csv --stdout > $invalid
 if ($LASTEXITCODE -ne 1 -or (Get-Item $invalid).Length -ne 0) { throw 'Invalid input exit/stdout contract failed.' }
+& "$PSScriptRoot/Test-Documentation.ps1" -ToolPath $tool
+if (!$?) { throw 'Documentation smoke checks failed.' }
 $hash = (Get-FileHash $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 [IO.File]::WriteAllText((Join-Path $package.DirectoryName 'SHA256SUMS'), "$hash  $($package.Name)`n", [Text.UTF8Encoding]::new($false))
 Write-Host "Validated package $($package.Name), SHA-256 $hash"

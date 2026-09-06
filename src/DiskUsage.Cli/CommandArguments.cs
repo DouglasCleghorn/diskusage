@@ -1,146 +1,57 @@
+using System.CommandLine;
+using System.CommandLine.Parsing;
+
 namespace DiskUsage.Cli;
 
+// Keeps filesystem/export code independent of the command-line framework.
 internal sealed class CommandArguments
 {
-    private static readonly HashSet<string> BooleanOptions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "help", "include-files", "include-hidden", "follow-links", "virtual-hosted-style", "stdout"
-    };
-    private static readonly HashSet<string> ValueOptions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "format", "compression", "compression-level", "output", "threads", "depth", "top",
-        "endpoint", "bucket", "key", "region", "access-key", "secret-key", "session-token",
-        "extensions", "size", "min-size", "max-size"
-    };
+    private readonly ParseResult _result;
+    private readonly Dictionary<string, Option> _options;
 
-    private readonly Dictionary<string, string?> _options;
-    private readonly Dictionary<string, List<string>> _repeatedOptions;
-
-    private CommandArguments(string command, IReadOnlyList<string> positionals, Dictionary<string, string?> options,
-        Dictionary<string, List<string>> repeatedOptions)
+    private CommandArguments(ParseResult result, CliCommandDefinition definition)
     {
-        Command = command;
-        Positionals = positionals;
-        _options = options;
-        _repeatedOptions = repeatedOptions;
+        _result = result;
+        Symbol = result.CommandResult.Command;
+        Command = Symbol == definition.Root ? "browse" : Symbol.Name;
+        _options = Symbol.Options.Concat(definition.Root.Options.Where(option => option.Recursive))
+            .Distinct().ToDictionary(option => option.Name[2..], StringComparer.OrdinalIgnoreCase);
+        var path = Symbol.Arguments.Count == 0 ? null : result.GetValue<string>("path");
+        Positionals = path is null ? [] : [path];
     }
 
+    internal Command Symbol { get; }
     public string Command { get; }
-
     public IReadOnlyList<string> Positionals { get; }
 
-    public bool Has(string name) => _options.ContainsKey(name);
+    public bool Has(string name) => Find(name) is { Implicit: false } result &&
+        (result.Option is not Option<bool> || result.GetValueOrDefault<bool>());
 
-    public string? Get(string name) => _options.GetValueOrDefault(name);
+    public string? Get(string name) => Find(name)?.GetValueOrDefault<string>();
+    public IReadOnlyList<string> GetValues(string name) => Find(name)?.GetValueOrDefault<string[]>() ?? [];
+    public string Require(string name) => Get(name) ?? throw new ArgumentException($"Missing required option --{name}.");
+    public int GetInt(string name, int defaultValue) => Find(name)?.GetValueOrDefault<int>() ?? defaultValue;
+    public int? GetOptionalInt(string name) => Has(name) ? Find(name)!.GetValueOrDefault<int>() : null;
 
-    public IReadOnlyList<string> GetValues(string name) =>
-        _repeatedOptions.TryGetValue(name, out var values) ? values : [];
-
-    public string Require(string name) =>
-        Get(name) ?? throw new ArgumentException($"Missing required option --{name}.");
-
-    public int GetInt(string name, int defaultValue)
-    {
-        var value = Get(name);
-        if (value is null)
-        {
-            return defaultValue;
-        }
-
-        return int.TryParse(value, out var parsed) && parsed >= 0
-            ? parsed
-            : throw new ArgumentException($"--{name} must be a non-negative integer.");
-    }
-
-    public int? GetOptionalInt(string name)
-    {
-        if (!Has(name))
-        {
-            return null;
-        }
-
-        var value = Get(name) ?? throw new ArgumentException($"Missing value for --{name}.");
-        return int.TryParse(value, out var parsed) && parsed >= 0
-            ? parsed
-            : throw new ArgumentException($"--{name} must be a non-negative integer.");
-    }
+    private OptionResult? Find(string name) => _options.TryGetValue(name, out var option) ? _result.GetResult(option) : null;
 
     public static CommandArguments Parse(string[] args)
     {
-        var command = "browse";
-        var positionals = new List<string>();
-        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        var repeatedOptions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        var index = 0;
-
-        void AddOption(string name, string? value)
+        var definition = new CliCommandDefinition();
+        var result = definition.Root.Parse(definition.Normalize(args), new ParserConfiguration
         {
-            if (!BooleanOptions.Contains(name) && !ValueOptions.Contains(name))
-                throw new ArgumentException($"Unknown option --{name}. Run 'diskusage help'.");
-            if (ValueOptions.Contains(name) && string.IsNullOrWhiteSpace(value))
-                throw new ArgumentException($"Missing value for --{name}.");
-            if (BooleanOptions.Contains(name) && value is not null)
-                throw new ArgumentException($"--{name} does not accept a value.");
-            if (name.Equals("extensions", StringComparison.OrdinalIgnoreCase) || name.Equals("size", StringComparison.OrdinalIgnoreCase))
-            {
-                if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException($"Missing value for --{name}.");
-                if (!repeatedOptions.TryGetValue(name, out var values)) repeatedOptions[name] = values = [];
-                values.Add(value);
-            }
-            else if (options.ContainsKey(name))
-            {
-                throw new ArgumentException($"Option --{name} was specified more than once.");
-            }
-            options[name] = value;
-        }
-
-        if (args.Length > 0 && !args[0].StartsWith("-", StringComparison.Ordinal))
-        {
-            if (CliApplication.Commands.Contains(args[0]))
-            {
-                command = args[0].ToLowerInvariant();
-                index++;
-            }
-            else
-            {
-                positionals.Add(args[0]);
-                index++;
-            }
-        }
-
-        while (index < args.Length)
-        {
-            var argument = args[index++];
-            if (!argument.StartsWith("--", StringComparison.Ordinal))
-            {
-                positionals.Add(argument);
-                continue;
-            }
-
-            var option = argument[2..];
-            var equals = option.IndexOf('=');
-            if (equals >= 0)
-            {
-                AddOption(option[..equals], option[(equals + 1)..]);
-                continue;
-            }
-
-            if (BooleanOptions.Contains(option))
-            {
-                AddOption(option, null);
-                continue;
-            }
-
-            if (index < args.Length && !args[index].StartsWith("--", StringComparison.Ordinal))
-            {
-                AddOption(option, args[index++]);
-            }
-            else
-            {
-                AddOption(option, null);
-            }
-        }
-
-        return new CommandArguments(command, positionals, options, repeatedOptions);
+            // Literal @-prefixed filesystem paths must not become response files.
+            ResponseFileTokenReplacer = null
+        });
+        var parsed = new CommandArguments(result, definition);
+        if (result.Errors.Count > 0 && !parsed.Has("help") && !parsed.Has("version"))
+            throw new ArgumentException(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
+        // System.CommandLine permits unknown option-like tokens as positional values.
+        // Require -- for such paths so misspelled filters never become a scan target.
+        if (!parsed.Has("help") && !parsed.Has("version") && parsed.Positionals.FirstOrDefault() is { } path &&
+            path.StartsWith('-') && !result.Tokens.SkipWhile(token => token.Type != TokenType.DoubleDash)
+                .Any(token => token.Type == TokenType.Argument && token.Value == path))
+            throw new ArgumentException($"Unknown option '{path}'. Use -- before a path beginning with '-'.");
+        return parsed;
     }
 }

@@ -11,14 +11,14 @@
     <PackageId>diskusage</PackageId>
     <Version>2.0.0</Version>
     <Authors>Douglas Cleghorn</Authors>
-    <Description>Fast interactive disk usage browser and file inventory exporter for .NET.</Description>
+    <Description>Cross-platform .NET command-line tool to find large files, analyze disk usage, and export filtered file inventories to CSV, TSV, or Parquet. Includes an ncdu-style browser, Brotli/gzip/ZIP compression, and uploads to Amazon S3 or MinIO.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2020-2026 Douglas Cleghorn</Copyright>
     <PackageProjectUrl>https://github.com/DouglasCleghorn/diskusage</PackageProjectUrl>
     <PackageReleaseNotes>Version 2.0: .NET 10 command-line tool, disk browser, filtered CSV/TSV/Parquet exports, configurable compression, and S3-compatible uploads. See README for known limitations.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>diskusage.png</PackageIcon>
-    <PackageTags>disk;storage;ncdu;parquet;s3;minio</PackageTags>
+    <PackageTags>disk-usage;file-inventory;large-files;filesystem;dotnet-tool;cli;storage;ncdu;csv;tsv;parquet;brotli;gzip;s3;minio</PackageTags>
     <RepositoryUrl>https://github.com/DouglasCleghorn/diskusage</RepositoryUrl>
     <PackageOutputPath>../../artifacts/packages</PackageOutputPath>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -28,8 +28,10 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="4.0.102.3" />
     <PackageReference Include="Parquet.Net" Version="6.1.0" />
+    <PackageReference Include="System.CommandLine" Version="2.0.11" />
     <ProjectReference Include="../DiskUsage.Core/DiskUsage.Core.csproj" PrivateAssets="all" />
     <None Include="../../README.md" Pack="true" PackagePath="/" Link="README.md" />
+    <None Include="../../AUTOMATION.md" Pack="true" PackagePath="/" Link="AUTOMATION.md" />
     <None Include="../../LICENSE" Pack="true" PackagePath="/" Link="LICENSE" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" Link="THIRD-PARTY-NOTICES.md" />
     <None Include="../diskusage.png" Pack="true" PackagePath="/" Link="diskusage.png" />
